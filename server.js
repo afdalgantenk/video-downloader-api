@@ -1,8 +1,10 @@
 import express from "express";
 import { exec } from "child_process";
+import fs from "fs";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const TMP = "/tmp";
 
 app.get("/", (req, res) => {
   res.send("API Downloader Aktif 🚀");
@@ -12,23 +14,29 @@ app.get("/download", (req, res) => {
   const { type, url } = req.query;
   if (!url) return res.status(400).send("URL kosong");
 
+  const id = Date.now();
+  let filename = "";
   let cmd = "";
 
   if (type === "mp3") {
-    cmd = `yt-dlp -x --audio-format mp3 "${url}"`;
+    filename = `${TMP}/${id}.mp3`;
+    cmd = `yt-dlp -x --audio-format mp3 -o "${filename}" "${url}"`;
   } else if (type === "mp4") {
-    cmd = `yt-dlp -f mp4 "${url}"`;
-  } else if (type === "tiktok") {
-    cmd = `yt-dlp "${url}"`;
-  } else if (type === "ig") {
-    cmd = `yt-dlp "${url}"`;
+    filename = `${TMP}/${id}.mp4`;
+    cmd = `yt-dlp -f mp4 -o "${filename}" "${url}"`;
+  } else if (type === "tiktok" || type === "ig") {
+    filename = `${TMP}/${id}.mp4`;
+    cmd = `yt-dlp -o "${filename}" "${url}"`;
   } else {
-    return res.status(400).send("Type tidak dikenal");
+    return res.status(400).send("Type tidak valid");
   }
 
   exec(cmd, (err) => {
-    if (err) return res.status(500).send("Gagal proses");
-    res.send("Berhasil diproses");
+    if (err) return res.status(500).send("Gagal download");
+
+    res.download(filename, () => {
+      fs.unlink(filename, () => {});
+    });
   });
 });
 
