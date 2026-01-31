@@ -1,4 +1,4 @@
-import express from "express";
+ import express from "express";
 import { exec } from "child_process";
 import fs from "fs";
 import path from "path";
@@ -7,102 +7,65 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const TMP = "/tmp";
 
-// home check
 app.get("/", (req, res) => {
   res.send("API Downloader Aktif 🚀");
 });
 
-// download endpoint
 app.get("/download", (req, res) => {
   const { type, url } = req.query;
 
-  if (!url || !type) {
+  if (!type || !url) {
     return res.status(400).send("Parameter tidak lengkap");
   }
 
   let cmd = "";
-  let outputTemplate = `${TMP}/%(title)s.%(ext)s`;
+  const output = `${TMP}/%(title)s.%(ext)s`;
 
-  switch (type) {
+  if (type === "mp3") {
+    // YouTube MP3 HQ
+    cmd = `yt-dlp -x --audio-format mp3 --audio-quality 0 --restrict-filenames -o "${output}" "${url}"`;
+  }
 
-    // ===== YOUTUBE MP3 =====
-    case "mp3":
-      cmd = `
-        yt-dlp
-        -x
-        --audio-format mp3
-        --audio-quality 0
-        --restrict-filenames
-        -o "${outputTemplate}"
-        "${url}"
-      `;
-      break;
+  else if (type === "mp4") {
+    // YouTube MP4 best
+    cmd = `yt-dlp -f "bv*+ba/b" --merge-output-format mp4 --restrict-filenames -o "${output}" "${url}"`;
+  }
 
-    // ===== YOUTUBE MP4 =====
-    case "mp4":
-      cmd = `
-        yt-dlp
-        -f "bv*+ba/b"
-        --merge-output-format mp4
-        --restrict-filenames
-        -o "${outputTemplate}"
-        "${url}"
-      `;
-      break;
+  else if (type === "tiktok") {
+    // TikTok HD No WM
+    cmd = `yt-dlp -f "bv*+ba/b" --merge-output-format mp4 --restrict-filenames --no-playlist -o "${output}" "${url}"`;
+  }
 
-    // ===== TIKTOK NO WM + HD =====
-    case "tiktok":
-      cmd = `
-        yt-dlp
-        -f "bv*+ba/b"
-        --merge-output-format mp4
-        --restrict-filenames
-        --no-playlist
-        -o "${outputTemplate}"
-        "${url}"
-      `;
-      break;
+  else if (type === "ig") {
+    // Instagram Video
+    cmd = `yt-dlp -f "bv*+ba/b" --merge-output-format mp4 --restrict-filenames --no-playlist -o "${output}" "${url}"`;
+  }
 
-    // ===== INSTAGRAM VIDEO =====
-    case "ig":
-      cmd = `
-        yt-dlp
-        -f "bv*+ba/b"
-        --merge-output-format mp4
-        --restrict-filenames
-        --no-playlist
-        -o "${outputTemplate}"
-        "${url}"
-      `;
-      break;
-
-    default:
-      return res.status(400).send("Type tidak dikenali");
+  else {
+    return res.status(400).send("Type tidak dikenali");
   }
 
   exec(cmd, { shell: "/bin/bash" }, (err, stdout, stderr) => {
     if (err) {
-      console.error("yt-dlp error:", stderr);
+      console.error(stderr);
       return res.status(500).send(stderr || "Gagal download");
     }
 
-    // cari file hasil download
     fs.readdir(TMP, (err, files) => {
-      if (err || !files.length) {
+      if (err || files.length === 0) {
         return res.status(500).send("File tidak ditemukan");
       }
 
-      // ambil file terbaru
-      const filesWithPath = files.map(f => ({
-        name: f,
-        time: fs.statSync(path.join(TMP, f)).mtime.getTime()
-      }));
+      const filesSorted = files
+        .map(f => ({
+          name: f,
+          time: fs.statSync(path.join(TMP, f)).mtime.getTime()
+        }))
+        .sort((a, b) => b.time - a.time);
 
-      filesWithPath.sort((a, b) => b.time - a.time);
-      const latestFile = path.join(TMP, filesWithPath[0].name);
+      const latestFile = path.join(TMP, filesSorted[0].name);
 
-      res.download(latestFile, err => {
-        // auto delete
+      res.download(latestFile, () => {
         fs.unlink(latestFile, () => {});
       });
     });
