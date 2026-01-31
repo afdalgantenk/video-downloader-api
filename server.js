@@ -20,19 +20,29 @@ app.get("/download", (req, res) => {
 
   if (type === "mp3") {
     filename = `${TMP}/${id}.mp3`;
-    cmd = `yt-dlp -x --audio-format mp3 -o "${filename}" "${url}"`;
-  } else if (type === "mp4") {
+    cmd = `yt-dlp -x --audio-format mp3 --audio-quality 0 -o "${filename}" "${url}"`;
+  }
+  else if (type === "mp4") {
     filename = `${TMP}/${id}.mp4`;
     cmd = `yt-dlp -f mp4 -o "${filename}" "${url}"`;
-  } else if (type === "tiktok" || type === "ig") {
+  }
+  else if (type === "tiktok") {
     filename = `${TMP}/${id}.mp4`;
     cmd = `yt-dlp -o "${filename}" "${url}"`;
-  } else {
+  }
+  else {
     return res.status(400).send("Type tidak valid");
   }
 
-  exec(cmd, (err) => {
-    if (err) return res.status(500).send("Gagal download");
+  exec(cmd, (err, stdout, stderr) => {
+    if (err) {
+      console.error("STDERR:", stderr);
+      return res.status(500).send(stderr || "yt-dlp error");
+    }
+
+    if (!fs.existsSync(filename)) {
+      return res.status(500).send("File tidak terbentuk");
+    }
 
     res.download(filename, () => {
       fs.unlink(filename, () => {});
