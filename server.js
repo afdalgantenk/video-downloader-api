@@ -37,8 +37,8 @@ app.get("/download", (req, res) => {
   }
 
   else if (type === "ig") {
-    // Instagram Video
-    cmd = `yt-dlp -f "bv*+ba/b" --merge-output-format mp4 --restrict-filenames --no-playlist -o "${output}" "${url}"`;
+  // Instagram
+  cmd = `yt-dlp -f "bv*+ba/b" --merge-output-format mp4 --recode-video mp4 --postprocessor-args "ffmpeg:-c:v libx264 -profile:v main -pix_fmt yuv420p -movflags +faststart -c:a aac" --restrict-filenames --no-playlist -o "${output}" "${url}"`;
   }
 
   else {
